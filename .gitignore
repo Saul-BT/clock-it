@@ -5,3 +5,4 @@
 
 # Compilation stuff
 /target
+Cargo.lock
