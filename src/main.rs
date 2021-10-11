@@ -1,12 +1,12 @@
+use druid::im::Vector;
+use druid::lens;
+use druid::widget::{
+    Button, Container, CrossAxisAlignment, Flex, Label, List, MainAxisAlignment, Scroll, TextBox,
+};
 use druid::Env;
 use druid::EventCtx;
-use druid::im::Vector;
-use druid::widget::{
-    Button, Container, CrossAxisAlignment, Flex, Label, List, MainAxisAlignment, Scroll, TextBox
-};
-use druid::{
-    AppLauncher, Color, Data, Lens, PlatformError, Widget, WidgetExt, WindowDesc,
-};
+use druid::LensExt;
+use druid::{AppLauncher, Color, Data, Lens, PlatformError, Widget, WidgetExt, WindowDesc};
 
 #[derive(Debug, Clone, Data, PartialEq)]
 enum TaskState {
@@ -47,7 +47,7 @@ impl AppState {
         self
     }
     pub fn remove_task(&mut self, task: &Task) -> &mut Self {
-        self.tasks.retain(|t| { t != task });
+        self.tasks.retain(|t| t != task);
         self
     }
 }
@@ -57,10 +57,13 @@ fn build_ui() -> impl Widget<AppState> {
         .cross_axis_alignment(CrossAxisAlignment::Start)
         .with_child(build_controls_ui())
         .with_flex_child(
-            Container::new(
-                Scroll::new(List::new(build_task_ui).with_spacing(5.0))
-                    .vertical()
-                    .lens(AppState::tasks),
+            Container::new(Scroll::new(List::new(build_task_ui).with_spacing(5.0))).lens(
+                lens::Identity.map(
+                    |d: &AppState| (d.clone(), d.tasks.clone()),
+                    |d: &mut AppState, x: (AppState, Vector<Task>)| {
+                        d.tasks = x.0.tasks;
+                    },
+                ),
             ),
             1.0,
         )
@@ -82,25 +85,34 @@ fn build_controls_ui() -> impl Widget<AppState> {
         .with_child(Button::new("Add task").on_click(add_task_handler))
 }
 
-fn build_task_ui() -> impl Widget<Task> {
+fn build_task_ui() -> impl Widget<(AppState, Task)> {
     Container::new(
         Flex::row()
             .must_fill_main_axis(true)
             .cross_axis_alignment(CrossAxisAlignment::Center)
             .main_axis_alignment(MainAxisAlignment::SpaceEvenly)
-            .with_child(Label::new(|task: &Task, _env: &_| task.description.clone()))
-            .with_child(Label::new(|task: &Task, _env: &_| {
+            .with_child(Label::new(|(_state, task): &(AppState, Task), _env: &_| {
+                task.description.clone()
+            }))
+            .with_child(Label::new(|(_state, task): &(AppState, Task), _env: &_| {
                 task.duration.to_string()
             }))
             .with_child(Button::new("Start"))
-            .with_child(Button::new("Delete"))
+            .with_child(Button::new("Delete").on_click(
+                |_, (state, task): &mut (AppState, Task), _| {
+                    state.remove_task(task);
+                },
+            ))
             .padding(10.0),
     )
     .background(Color::rgb(0.3, 0.3, 0.3))
 }
 
-fn add_task_handler(_ctx: &mut EventCtx, data: &mut AppState, _env: &Env) -> () {
-    data.add_task(&Task::new(&data.task_description, data.task_duration.parse().unwrap()));
+fn add_task_handler(_ctx: &mut EventCtx, data: &mut AppState, _env: &Env) {
+    data.add_task(&Task::new(
+        &data.task_description,
+        data.task_duration.parse().unwrap(),
+    ));
 }
 
 fn main() -> Result<(), PlatformError> {
