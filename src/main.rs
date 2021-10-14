@@ -1,3 +1,4 @@
+use rand::Rng;
 use druid::im::Vector;
 use druid::lens;
 use druid::widget::{
@@ -7,6 +8,7 @@ use druid::Env;
 use druid::EventCtx;
 use druid::LensExt;
 use druid::{AppLauncher, Color, Data, Lens, PlatformError, Widget, WidgetExt, WindowDesc};
+
 
 #[derive(Debug, Clone, Data, PartialEq)]
 enum TaskState {
@@ -20,15 +22,19 @@ enum TaskState {
 struct Task {
     description: String,
     duration: usize,
+    unique_id: u32,
     state: TaskState,
 }
 
 impl Task {
     pub fn new(description: &str, duration: usize) -> Self {
+        let mut rng = rand::thread_rng();
+
         Self {
-            duration,
-            state: TaskState::Stopped,
             description: description.to_string(),
+            duration,
+            unique_id: rng.gen::<u32>(),
+            state: TaskState::Stopped,
         }
     }
 }
