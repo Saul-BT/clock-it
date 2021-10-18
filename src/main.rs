@@ -1,4 +1,4 @@
-use rand::Rng;
+use std::time::{SystemTime, UNIX_EPOCH};
 use druid::im::Vector;
 use druid::lens;
 use druid::widget::{
@@ -28,12 +28,14 @@ struct Task {
 
 impl Task {
     pub fn new(description: &str, duration: usize) -> Self {
-        let mut rng = rand::thread_rng();
-
+        let time_since_epoch = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("The clock on your computer is broken.");
+        
         Self {
             description: description.to_string(),
             duration,
-            unique_id: rng.gen::<u32>(),
+            unique_id: time_since_epoch.as_millis() as u32,
             state: TaskState::Stopped,
         }
     }
