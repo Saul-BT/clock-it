@@ -22,7 +22,7 @@ enum TaskState {
 struct Task {
     description: String,
     duration: usize,
-    unique_id: u32,
+    timestamp: u32,
     state: TaskState,
 }
 
@@ -35,7 +35,7 @@ impl Task {
         Self {
             description: description.to_string(),
             duration,
-            unique_id: time_since_epoch.as_millis() as u32,
+            timestamp: time_since_epoch.as_millis() as u32,
             state: TaskState::Stopped,
         }
     }
