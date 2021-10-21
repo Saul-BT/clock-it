@@ -1,3 +1,4 @@
+use std::time::{SystemTime, UNIX_EPOCH};
 use druid::im::Vector;
 use druid::lens;
 use druid::widget::{
@@ -7,6 +8,7 @@ use druid::Env;
 use druid::EventCtx;
 use druid::LensExt;
 use druid::{AppLauncher, Color, Data, Lens, PlatformError, Widget, WidgetExt, WindowDesc};
+
 
 #[derive(Debug, Clone, Data, PartialEq)]
 enum TaskState {
@@ -20,15 +22,21 @@ enum TaskState {
 struct Task {
     description: String,
     duration: usize,
+    timestamp: u32,
     state: TaskState,
 }
 
 impl Task {
     pub fn new(description: &str, duration: usize) -> Self {
+        let time_since_epoch = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("The clock on your computer is broken.");
+        
         Self {
-            duration,
-            state: TaskState::Stopped,
             description: description.to_string(),
+            duration,
+            timestamp: time_since_epoch.as_millis() as u32,
+            state: TaskState::Stopped,
         }
     }
 }
