@@ -1,4 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use druid::im::Vector;
 use druid::lens;
 use druid::widget::{
@@ -8,8 +7,9 @@ use druid::Env;
 use druid::EventCtx;
 use druid::LensExt;
 use druid::{AppLauncher, Color, Data, Lens, PlatformError, Widget, WidgetExt, WindowDesc};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-
+#[allow(dead_code)]
 #[derive(Debug, Clone, Data, PartialEq)]
 enum TaskState {
     InProgress { duration: usize },
@@ -31,7 +31,7 @@ impl Task {
         let time_since_epoch = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("The clock on your computer is broken.");
-        
+
         Self {
             description: description.to_string(),
             duration,
@@ -46,7 +46,6 @@ struct AppState {
     tasks: Vector<Task>,
     task_description: String,
     task_duration: String,
-    selected_task: usize,
 }
 
 impl AppState {
@@ -57,6 +56,71 @@ impl AppState {
     pub fn remove_task(&mut self, task: &Task) -> &mut Self {
         self.tasks.retain(|t| t != task);
         self
+    }
+    pub fn start_task(&mut self, starting_task: &Task) -> &mut Self {
+        for task in self.tasks.iter_mut() {
+            if task == starting_task {
+                task.state = TaskState::InProgress {
+                    duration: task.duration,
+                }
+            }
+        }
+        self
+    }
+    pub fn pause_task(&mut self, stopping_task: &Task) -> &mut Self {
+        for task in self.tasks.iter_mut() {
+            if task == stopping_task {
+                task.state = TaskState::Stopped
+            }
+        }
+        self
+    }
+
+    // Add task
+    fn add_task_handler(_ctx: &mut EventCtx, state: &mut AppState, _env: &Env) {
+        state.add_task(&Task::new(
+            &state.task_description,
+            state.task_duration.parse().unwrap(),
+        ));
+    }
+
+    // Handle the action of the button state change of a task
+    fn action_task_handler(_ctx: &mut EventCtx, (state, task): &mut (AppState, Task), _env: &Env) {
+        match task.state {
+            TaskState::InProgress { duration: _ } => {
+                state.pause_task(&task);
+            }
+            _ => {
+                state.start_task(&task);
+            }
+        }
+    }
+
+    // Handle the state button label of a task
+    fn button_label_task_handler((_state, task): &(AppState, Task), _env: &Env) -> String {
+        match task.state {
+            TaskState::InProgress { duration: _ } => "Pause".to_string(),
+            TaskState::Completed => "Restart".to_string(),
+            _ => "Start".to_string(),
+        }
+    }
+
+    // Delete a task
+    fn delete_task_handler(_ctx: &mut EventCtx, (state, task): &mut (AppState, Task), _env: &Env) {
+        state.remove_task(task);
+    }
+
+    // Handle the duration labe of a task
+    fn description_task_handler((_state, task): &(AppState, Task), _env: &Env) -> String {
+        format!("[{}]", task.duration)
+    }
+
+    // Handle the description labe of a task
+    fn duration_task_handler((_state, task): &(AppState, Task), _env: &Env) -> String {
+        match task.state {
+            TaskState::InProgress { duration: _ } => format!("-> {}", task.description),
+            _ => format!("     {}", task.description),
+        }
     }
 }
 
@@ -90,7 +154,7 @@ fn build_controls_ui() -> impl Widget<AppState> {
                 .with_child(Label::new("Duration: "))
                 .with_child(TextBox::new().lens(AppState::task_duration)),
         )
-        .with_child(Button::new("Add task").on_click(add_task_handler))
+        .with_child(Button::new("Add task").on_click(AppState::add_task_handler))
 }
 
 fn build_task_ui() -> impl Widget<(AppState, Task)> {
@@ -99,28 +163,16 @@ fn build_task_ui() -> impl Widget<(AppState, Task)> {
             .must_fill_main_axis(true)
             .cross_axis_alignment(CrossAxisAlignment::Center)
             .main_axis_alignment(MainAxisAlignment::SpaceEvenly)
-            .with_child(Label::new(|(_state, task): &(AppState, Task), _env: &_| {
-                task.description.clone()
-            }))
-            .with_child(Label::new(|(_state, task): &(AppState, Task), _env: &_| {
-                task.duration.to_string()
-            }))
-            .with_child(Button::new("Start"))
-            .with_child(Button::new("Delete").on_click(
-                |_, (state, task): &mut (AppState, Task), _| {
-                    state.remove_task(task);
-                },
-            ))
+            .with_child(Label::new(AppState::duration_task_handler))
+            .with_child(Label::new(AppState::description_task_handler))
+            .with_child(
+                Button::new(AppState::button_label_task_handler)
+                    .on_click(AppState::action_task_handler),
+            )
+            .with_child(Button::new("Delete").on_click(AppState::delete_task_handler))
             .padding(10.0),
     )
     .background(Color::rgb(0.3, 0.3, 0.3))
-}
-
-fn add_task_handler(_ctx: &mut EventCtx, data: &mut AppState, _env: &Env) {
-    data.add_task(&Task::new(
-        &data.task_description,
-        data.task_duration.parse().unwrap(),
-    ));
 }
 
 fn main() -> Result<(), PlatformError> {
